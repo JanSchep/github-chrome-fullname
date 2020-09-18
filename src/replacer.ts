@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 // @flow
 import { API3 } from "./api"
 import Restrictor from "./restrictor"
@@ -38,7 +39,7 @@ export class NodeReplacer {
     }
 
     public async replace(element: Node) {
-        const walker = document.createTreeWalker(element, 4)
+        const walker = document.createTreeWalker(element)
         const pending = []
         let x = 0
         while(walker.nextNode()) {
@@ -49,6 +50,15 @@ export class NodeReplacer {
             const { currentNode } = walker
             pending.push(this._replaceNode(currentNode))
         }
+        
+        const list: HTMLCollectionOf<HTMLButtonElement> = (element as Element).getElementsByTagName("button")
+        for (var i = 0; i < list.length; i++){
+            const attribute = list[i].getAttributeNode("aria-label")       
+            if(attribute) {
+                pending.push(this._replaceAttribute(attribute))
+            }     
+        }
+
         await Promise.all(pending)
     }
 
@@ -56,26 +66,44 @@ export class NodeReplacer {
         if(!node.nodeValue) {
             return
         }
+        
         const ids = node.nodeValue.match(this._idRegex) || []
         if(ids.length <= 0 || !this._restrictor.check(node.parentElement)) {
             return
         }
         const pending = []
         for(const id of ids) {
-            pending.push(this._replaceId(id, node))
+            pending.push(node.nodeValue = await this._replaceId(id, node.nodeValue))
         }
         await Promise.all(pending)
     }
 
-    public async _replaceId(id: string, node: Node) {
-        const user = await this._api.getUser(id, window.location.hostname)
-        if(!user) {
+    public async _replaceAttribute(attribute: Attr) {
+        if(!attribute.value) {
             return
         }
-        let userName = user.getName()
-        if(userName && userName != "" && node.nodeValue ) {
-            node.nodeValue = node.nodeValue.replace(id, userName)
+        
+        const ids = attribute.value.match(this._idRegex) || []
+        if(ids.length <= 0) {
+            return
         }
+        const pending = []
+        for(const id of ids) {
+            pending.push(attribute.value = await this._replaceId(id, attribute.value))
+        }
+        await Promise.all(pending)
+    }
+
+    public async _replaceId(id: string, value: string): Promise<string> {
+        const user = await this._api.getUser(id, window.location.hostname)
+        if(!user) {
+            return value
+        }
+        let userName = user.getName()
+        if(userName && userName != "") {
+            return value.replace(id, userName)
+        }
+        return value
     }
 }
 
