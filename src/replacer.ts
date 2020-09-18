@@ -51,13 +51,16 @@ export class NodeReplacer {
             pending.push(this._replaceNode(currentNode))
         }
         
-        const list: HTMLCollectionOf<HTMLButtonElement> = (element as Element).getElementsByTagName("button")
-        for (var i = 0; i < list.length; i++){
-            const attribute = list[i].getAttributeNode("aria-label")       
-            if(attribute) {
-                pending.push(this._replaceAttribute(attribute))
-            }     
-        }
+        if (element instanceof Element){
+            // replace user id in tooltips
+            const list: HTMLCollectionOf<HTMLButtonElement> = element.getElementsByTagName("button")
+            for (var i = 0; i < list.length; i++){
+                const attribute = list[i].getAttributeNode("aria-label")       
+                if(attribute) {
+                    pending.push(this._replaceAttribute(attribute))
+                }     
+            }
+        }        
 
         await Promise.all(pending)
     }
